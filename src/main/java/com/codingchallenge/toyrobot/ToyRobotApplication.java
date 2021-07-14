@@ -33,8 +33,8 @@ public class ToyRobotApplication {
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
                 .title("Toy Robot")
-                .description("RESTfull API for Toy Robot")
-                .version("1")
+                .description("REST API for Toy Robot")
+                .version("1.0.0")
                 .build();
     }
 

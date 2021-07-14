@@ -7,10 +7,8 @@ import lombok.ToString;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @ToString
-public class RobotLocationDTO implements IRobotLocation {
-    private int x;
-    private int y;
-    private DirectionEnum direction;
+@AllArgsConstructor
+public class RobotLocationMessageDTO implements IRobotLocation {
+    private String message;
 }

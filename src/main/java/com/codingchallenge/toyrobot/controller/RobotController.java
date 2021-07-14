@@ -1,8 +1,10 @@
 package com.codingchallenge.toyrobot.controller;
 
+import com.codingchallenge.toyrobot.config.ApplicationExceptionHandler;
 import com.codingchallenge.toyrobot.domain.CommandPlace;
 import com.codingchallenge.toyrobot.domain.DirectionEnum;
-import com.codingchallenge.toyrobot.domain.RobotLocationDTO;
+import com.codingchallenge.toyrobot.domain.IRobotLocation;
+import com.codingchallenge.toyrobot.domain.RobotLocation;
 import com.codingchallenge.toyrobot.service.RobotCommandService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -13,19 +15,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
 @RestController
 @RequestMapping(RobotController.API)
-@Api(tags = {"robot"})
+@Api(tags = {"robot"}, description = "REST api's for a stateful toy robot")
 public class RobotController {
 
     static final String API = "/rest/robot";
@@ -36,57 +34,49 @@ public class RobotController {
         this.robotService = robotService;
     }
 
-    @ApiOperation(value = "Execute a string of batch ci robot commands",
-            notes = "Example: PLACE 0,0,NORTH MOVE LEFT MOVE RIGHT REPORT",
-            response = RobotLocationDTO.class,
-            responseContainer = "List")
-    @PostMapping(path = "/batch-cli", consumes = TEXT_PLAIN_VALUE, produces = APPLICATION_JSON_VALUE)
-    public List<RobotLocationDTO> batchCommandsForRobot(@RequestBody String batchCommands) {
-        return robotService.executeBatchCommandsForRobot(batchCommands);
-    }
-
     @ApiOperation(value = "Place the robot on the grid at xy co-ordinates and orientation")
     @PostMapping(path = "/place/x/{x}/y/{y}/direction/{direction}", produces = APPLICATION_JSON_VALUE)
     public void placeRobot(@PathVariable("x") int x,
                            @PathVariable("y") int y,
                            @PathVariable("direction") DirectionEnum direction) {
-        robotService.placeRobot(new CommandPlace(x, y, direction));
+        robotService.placeRobot(RobotCommandService.getStateFulRobotLocation(), new CommandPlace(x, y, direction));
     }
 
     @ApiOperation(value = "Move the robot forward one square in the current orientation direction")
     @PutMapping(path = "/move", produces = APPLICATION_JSON_VALUE)
     public void moveForward() {
-        robotService.moveForward();
+        robotService.moveForward(RobotCommandService.getStateFulRobotLocation());
     }
 
     @ApiOperation(value = "Rotate the robot right on the grid")
     @PutMapping(path = "/left", produces = APPLICATION_JSON_VALUE)
     public void turnLeft() {
-        robotService.turnLeft();
+        robotService.turnLeft(RobotCommandService.getStateFulRobotLocation());
     }
 
     @ApiOperation(value = "Rotate the robot right on the grid")
     @PutMapping(path = "/right", produces = APPLICATION_JSON_VALUE)
     public void turnRight() {
-        robotService.turnRight();
+        robotService.turnRight(RobotCommandService.getStateFulRobotLocation());
     }
 
     @ApiOperation(value = "Report on the current location and orientation of the robot")
     @GetMapping(path = "/report", produces = APPLICATION_JSON_VALUE)
-    @ApiResponse(code = 404, message = "ROBOT MISSING")
-    public RobotLocationDTO reportLocation() {
-        RobotLocationDTO retDTO = robotService.reportLocation();
-        if (retDTO == null) {
-            throw new RobotNotFoundException();
+    @ApiResponse(code = 404, message = ApplicationExceptionHandler.MISSING_ROBOT_MESSAGE)
+    public IRobotLocation reportLocation() {
+        RobotLocation robotLocation = robotService.reportLocation(RobotCommandService.getStateFulRobotLocation());
+        IRobotLocation robotLocationDTO = robotService.convertLocationToDTO(robotLocation);
+        if (robotLocation == null) {
+            throw new RobotNotFoundException(robotLocationDTO);
         }
-        return retDTO;
+        return robotLocationDTO;
     }
 
     @ApiOperation(value = "Delete/remove the robot from the grid")
     @DeleteMapping(produces = APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteRobot() {
-        robotService.deleteRobot();
+        robotService.deleteRobot(RobotCommandService.getStateFulRobotLocation());
     }
 
 

@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.codingchallenge</groupId>
 	<artifactId>toy-robot</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>war</packaging>
 	<name>toy-robot</name>
 	<description>Toy robot coding challenge project</description>
@@ -25,13 +25,13 @@
 		<dependency>
 			<groupId>io.springfox</groupId>
 			<artifactId>springfox-swagger2</artifactId>
-			<version>2.10.5</version>
+			<version>2.6.1</version>
 		</dependency>
 
 		<dependency>
 			<groupId>io.springfox</groupId>
 			<artifactId>springfox-swagger-ui</artifactId>
-			<version>2.10.5</version>
+			<version>2.6.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>

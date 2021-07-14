@@ -1,5 +1,6 @@
 package com.codingchallenge.toyrobot.service;
 
+import com.codingchallenge.toyrobot.config.ApplicationExceptionHandler;
 import com.codingchallenge.toyrobot.domain.CommandEnum;
 import com.codingchallenge.toyrobot.domain.CommandLeft;
 import com.codingchallenge.toyrobot.domain.CommandMove;
@@ -8,7 +9,10 @@ import com.codingchallenge.toyrobot.domain.CommandReport;
 import com.codingchallenge.toyrobot.domain.CommandRight;
 import com.codingchallenge.toyrobot.domain.DirectionEnum;
 import com.codingchallenge.toyrobot.domain.ICommand;
+import com.codingchallenge.toyrobot.domain.IRobotLocation;
+import com.codingchallenge.toyrobot.domain.RobotLocation;
 import com.codingchallenge.toyrobot.domain.RobotLocationDTO;
+import com.codingchallenge.toyrobot.domain.RobotLocationMessageDTO;
 import com.codingchallenge.toyrobot.domain.TurnEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,18 +40,27 @@ public class RobotCommandService {
     private static final String MOVE_COMMAND_MESSAGE = "Robot moving [{}][currentLocation={}]";
     private static final String MOVE_COMMAND_IGNORED_MESSAGE = "Move command ignored [currentLocation={}]";
 
-    // Robot location - Use atomic reference to keep this thread safe
-    private static final AtomicReference<RobotLocationDTO> robotLocation = new AtomicReference<>();
+    // Stateful robot location - Use atomic reference to keep this thread safe
+    private static final AtomicReference<RobotLocation> stateFulRobotLocation = new AtomicReference<>();
+
+
+    /**
+     * Accessor for stateful robot location/state
+     * @return
+     */
+    public static AtomicReference<RobotLocation> getStateFulRobotLocation() {
+        return stateFulRobotLocation;
+    }
 
     /**
      * Place robot on the grid facing a direction
      *
      * @param place
      */
-    public void placeRobot(CommandPlace place) {
+    public void placeRobot(AtomicReference<RobotLocation> robotLocationInstance, CommandPlace place) {
         if (place.getX() >= MIN_X && place.getX() <= MAX_X && place.getY() >= MIN_Y && place.getY() <= MAX_Y) {
-            RobotLocationDTO location = new RobotLocationDTO(place.getX(), place.getY(), place.getDirection());
-            robotLocation.set(location);
+            RobotLocation location = new RobotLocation(place.getX(), place.getY(), place.getDirection());
+            robotLocationInstance.set(location);
             log.info("New robot location [currentLocation={}", location);
         }
     }
@@ -55,8 +68,8 @@ public class RobotCommandService {
     /**
      * Move robot forward in the direction its facing by one square
      */
-    public void moveForward() {
-        robotLocation.getAndUpdate(location -> {
+    public void moveForward(AtomicReference<RobotLocation> robotLocationInstance) {
+        robotLocationInstance.getAndUpdate(location -> {
             if (location != null) {
                 switch (location.getDirection()) {
                     case NORTH:
@@ -102,29 +115,29 @@ public class RobotCommandService {
     /**
      * Turn robot left
      */
-    public void turnLeft() {
-        turn(TurnEnum.LEFT);
+    public void turnLeft(AtomicReference<RobotLocation> robotLocationInstance) {
+        turn(robotLocationInstance, TurnEnum.LEFT);
     }
 
     /**
      * Turn robot right
      */
-    public void turnRight() {
-        turn(TurnEnum.RIGHT);
+    public void turnRight(AtomicReference<RobotLocation> robotLocationInstance) {
+        turn(robotLocationInstance, TurnEnum.RIGHT);
     }
 
     /**
      * Return robots current location
      */
-    public RobotLocationDTO reportLocation() {
-        return robotLocation.get();
+    public RobotLocation reportLocation(AtomicReference<RobotLocation> robotLocationInstance) {
+        return robotLocationInstance.get();
     }
 
     /**
      * Remove the robot from the grid
      */
-    public void deleteRobot() {
-        robotLocation.set(null);
+    public void deleteRobot(AtomicReference<RobotLocation> robotLocationInstance) {
+        robotLocationInstance.set(null);
         log.info("Robot deleted");
     }
 
@@ -134,34 +147,41 @@ public class RobotCommandService {
      * @param batchCommands
      * @return
      */
-    public List<RobotLocationDTO> executeBatchCommandsForRobot(String batchCommands) {
+    public List<IRobotLocation> executeBatchCommandsForRobot(String batchCommands) {
+        AtomicReference<RobotLocation> robotLocationInstance = new AtomicReference<>();
+        // Create a new grid
         return parseCommands(batchCommands).stream()
                 .map(cmd -> {
-                    RobotLocationDTO robotLocationDTO = null;
+                    IRobotLocation robotLocation = null;
                     CommandEnum cmdType = cmd.getCommand();
-                    switch (cmdType) {
-                        case PLACE:
-                            placeRobot((CommandPlace) cmd);
-                            break;
-                        case MOVE:
-                            moveForward();
-                            break;
-                        case LEFT:
-                            turnLeft();
-                            break;
-                        case RIGHT:
-                            turnRight();
-                            break;
-                        case REPORT:
-                            robotLocationDTO = reportLocation();
-                            break;
-                        default:
-                            throw new IllegalArgumentException("Unsupported robot command");
-                    }
-                    return robotLocationDTO;
+                    robotLocation = exeuteCommand(robotLocationInstance, cmd, robotLocation, cmdType);
+                    return robotLocation;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    private IRobotLocation exeuteCommand(AtomicReference<RobotLocation> robotLocationInstance, ICommand cmd, IRobotLocation robotLocation, CommandEnum cmdType) {
+        switch (cmdType) {
+            case PLACE:
+                placeRobot(robotLocationInstance, (CommandPlace)cmd);
+                break;
+            case MOVE:
+                moveForward(robotLocationInstance);
+                break;
+            case LEFT:
+                turnLeft(robotLocationInstance);
+                break;
+            case RIGHT:
+                turnRight(robotLocationInstance);
+                break;
+            case REPORT:
+                robotLocation = convertLocationToDTO(reportLocation(robotLocationInstance));
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported robot command");
+        }
+        return robotLocation;
     }
 
     /**
@@ -169,8 +189,8 @@ public class RobotCommandService {
      *
      * @param turnDirection
      */
-    private void turn(TurnEnum turnDirection) {
-        robotLocation.getAndUpdate(rl -> {
+    private void turn(AtomicReference<RobotLocation> robotLocationInstance, TurnEnum turnDirection) {
+        robotLocationInstance.getAndUpdate(rl -> {
             if (rl != null) {
                 switch (rl.getDirection()) {
                     case NORTH:
@@ -223,7 +243,7 @@ public class RobotCommandService {
         List<ICommand> commandRet = new ArrayList<>();
         if (StringUtils.hasText(batchCliCommands)) {
             // Cleanup whitespace so we can parse nicely
-            batchCliCommands =  batchCliCommands.replaceAll("\\s*,\\s*", ",").replaceAll("\\s+", " ");
+            batchCliCommands = batchCliCommands.replaceAll("\\s*,\\s*", ",").replaceAll("\\s+", " ");
             log.info("batchCliCommands={}", batchCliCommands);
             StringTokenizer st = new StringTokenizer(batchCliCommands);
             while (st.hasMoreTokens()) {
@@ -285,6 +305,18 @@ public class RobotCommandService {
             throw new IllegalArgumentException(String.format("Invalid placement value [%s]", placementValue));
         }
 
+    }
+
+    /**
+     * Convert location to DTO for output
+     *
+     * @param robotLocation
+     * @return
+     */
+    public IRobotLocation convertLocationToDTO(RobotLocation robotLocation) {
+        return robotLocation != null ?
+                new RobotLocationDTO(robotLocation.getX(), robotLocation.getY(), robotLocation.getDirection()) :
+                new RobotLocationMessageDTO(ApplicationExceptionHandler.MISSING_ROBOT_MESSAGE);
     }
 
 }
