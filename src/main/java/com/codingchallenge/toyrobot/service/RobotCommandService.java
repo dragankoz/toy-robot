@@ -30,10 +30,10 @@ import java.util.stream.Collectors;
 public class RobotCommandService {
 
     // Robot grid size
-    private static final int MIN_Y = 0;
-    private static final int MIN_X = 0;
-    private static final int MAX_Y = 4;
-    private static final int MAX_X = 4;
+    protected static final int MIN_Y = 0;
+    protected static final int MIN_X = 0;
+    protected static final int MAX_Y = 4;
+    protected static final int MAX_X = 4;
 
     // Logging template messages
     private static final String TURN_COMMAND_MESSAGE = "Robot turning [{}][currentLocation={}]";
