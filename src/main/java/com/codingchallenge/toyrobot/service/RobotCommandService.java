@@ -1,6 +1,7 @@
 package com.codingchallenge.toyrobot.service;
 
 import com.codingchallenge.toyrobot.config.ApplicationExceptionHandler;
+import com.codingchallenge.toyrobot.controller.UnknownCommandException;
 import com.codingchallenge.toyrobot.domain.CommandEnum;
 import com.codingchallenge.toyrobot.domain.CommandLeft;
 import com.codingchallenge.toyrobot.domain.CommandMove;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringTokenizer;
@@ -270,7 +272,7 @@ public class RobotCommandService {
                     CommandReport commandHolder = new CommandReport();
                     commandRet.add(commandHolder);
                 } else {
-                    throw new IllegalArgumentException(String.format("Unsupported command [%s]", cmd));
+                    throw new UnknownCommandException(Arrays.asList(String.format("Unsupported command [%s]", cmd)));
                 }
             }
         }
